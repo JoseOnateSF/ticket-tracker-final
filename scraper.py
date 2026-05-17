@@ -1,6 +1,7 @@
 import os
 import re
 import requests
+import math
 from config import STUBHUB_URL, EVENT_KEYWORDS, SECTION_TARGET
 
 def get_prices():
@@ -53,22 +54,24 @@ def get_prices():
             print(f"SECTION '{SECTION_TARGET}' NOT FOUND - La sección no aparece en el HTML.")
             return []
 
-        # 🔥 EXTRACCIÓN QUIRÚRGICA: Buscamos únicamente el valor dentro de data-price="$XXX"
-        # Esto ignora por completo el mapa, los SVGs y las sugerencias de abajo
+        # Expresión regular para capturar el precio base real de la lista
         raw_prices = re.findall(r'data-price="\$(\d+)"', content)
 
         for p in raw_prices:
-            price = int(p)
-            # Filtro de seguridad estándar
-            if 50 < price < 5000: 
-                prices.append(price)
+            # 🔥 AJUSTE MATEMÁTICO: Multiplicamos por 1.017 (1.7% de tarifa) y redondeamos hacia arriba
+            price_base = int(p)
+            price_ajustado = math.ceil(price_base * 1.017)
+            
+            # Filtro de seguridad
+            if 50 < price_ajustado < 5000: 
+                prices.append(price_ajustado)
 
         # Limpiamos duplicados y ordenamos de menor a mayor
         prices = sorted(list(set(prices)))
 
-        print("PRECIOS VALIDOS EN LA LISTA (Ordenados de menor a mayor):", prices)
+        print("PRECIOS VALIDOS EN LA LISTA (Ajustados por porcentaje web):", prices)
         if prices:
-            print(f"¡El boleto más económico real de la lista es de: ${prices[0]}!")
+            print(f"¡El boleto más económico ajustado es de: ${prices[0]}!")
 
     except Exception as e:
         print(f"Error crítico en el scraper /smart-scrape: {e}")
