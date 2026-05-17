@@ -26,7 +26,6 @@ def get_level(drop):
         return "🔵 LEVE"
     return None
 
-
 def monitor():
     time.sleep(5)  # deja arrancar Flask
 
@@ -35,7 +34,6 @@ def monitor():
     while True:
         try:
             prices = get_prices()
-            print("PRICES:", prices)
 
             if prices:
                 best = min(prices)
@@ -58,28 +56,24 @@ def monitor():
                     )
                     last_level = level
             else:
-                data["status"] = "no data"
+                data["status"] = "no data / scanning..."
 
         except Exception as e:
-            print("ERROR:", e)
+            print("MONITOR ERROR:", e)
             data["status"] = str(e)
 
         time.sleep(CHECK_INTERVAL)
 
-
-# 🚀 ARRANQUE CORRECTO
+# 🚀 ARRANQUE DEL HILO EN SEGUNDO PLANO
 threading.Thread(target=monitor, daemon=True).start()
-
 
 @app.route("/")
 def home():
     return jsonify(data)
 
-
 @app.route("/api")
 def api():
     return jsonify(data)
-
 
 @app.route("/health")
 def health():
