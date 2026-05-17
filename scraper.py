@@ -32,8 +32,6 @@ def get_prices():
             return []
 
         response_json = response.json()
-        
-        # 🔥 SOLUCIÓN: Extraemos el HTML directamente de la llave 'content' que vimos en el log
         content = response_json.get("content", "")
 
         if not content:
@@ -55,15 +53,22 @@ def get_prices():
             print(f"SECTION '{SECTION_TARGET}' NOT FOUND - La sección no aparece en el HTML.")
             return []
 
-        # Extracción matemática de los precios ($X)
-        raw_prices = re.findall(r"\$(\d+)", content)
+        # 🔥 EXTRACCIÓN QUIRÚRGICA: Buscamos únicamente el valor dentro de data-price="$XXX"
+        # Esto ignora por completo el mapa, los SVGs y las sugerencias de abajo
+        raw_prices = re.findall(r'data-price="\$(\d+)"', content)
 
         for p in raw_prices:
             price = int(p)
-            if 20 < price < 5000:
+            # Filtro de seguridad estándar
+            if 50 < price < 5000: 
                 prices.append(price)
 
-        print("PRICES FOUND:", prices)
+        # Limpiamos duplicados y ordenamos de menor a mayor
+        prices = sorted(list(set(prices)))
+
+        print("PRECIOS VALIDOS EN LA LISTA (Ordenados de menor a mayor):", prices)
+        if prices:
+            print(f"¡El boleto más económico real de la lista es de: ${prices[0]}!")
 
     except Exception as e:
         print(f"Error crítico en el scraper /smart-scrape: {e}")
