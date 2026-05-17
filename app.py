@@ -8,6 +8,7 @@ from config import BASE_PRICE, CHECK_INTERVAL, STUBHUB_URL
 
 app = Flask(__name__)
 
+# Base de datos en vivo del bot
 data = {
     "prices": [],
     "best": None,
@@ -15,6 +16,7 @@ data = {
     "status": "starting"
 }
 
+# Niveles de alerta por caída de precio
 def get_level(drop):
     if drop >= 30:
         return "💥 CRÍTICO"
@@ -26,6 +28,7 @@ def get_level(drop):
         return "🔵 LEVE"
     return None
 
+# Hilo de monitoreo en segundo plano
 def monitor():
     time.sleep(5)  # deja arrancar Flask
 
@@ -33,17 +36,21 @@ def monitor():
 
     while True:
         try:
+            # Llama al raspador avanzado con evasión de CloudFront
             prices = get_prices()
 
             if prices:
                 best = min(prices)
+                # Calcula el drop porcentual real
                 drop = ((BASE_PRICE - best) / BASE_PRICE) * 100
 
+                # Actualiza el diccionario 'data' para la web
                 data["prices"] = prices
                 data["best"] = best
                 data["drop"] = round(drop, 2)
                 data["status"] = "running"
 
+                # Verifica el nivel de drop para mandar Telegram
                 level = get_level(drop)
 
                 if level and level != last_level:
@@ -62,21 +69,26 @@ def monitor():
             print("MONITOR ERROR:", e)
             data["status"] = str(e)
 
+        # Tiempo de espera entre escaneos
         time.sleep(CHECK_INTERVAL)
 
-# ARRANQUE DEL MONITOR EN SEGUNDO PLANO
+# ARRANQUE DEL HILO EN SEGUNDO PLANO
 threading.Thread(target=monitor, daemon=True).start()
 
+# 🔥 RUTA PRINCIPAL VISTA: Dashboard Visual Premium de BTS
 @app.route("/")
 def home():
+    # Extrae datos en vivo
     best = data.get("best")
     prices = data.get("prices", [])
     drop = data.get("drop", 0)
     status = data.get("status", "desconocido")
     
+    # Colores dinámicos del estatus
     status_color = "bg-emerald-500" if status == "running" else "bg-amber-500"
     status_label = "Radar Conectado" if status == "running" else f"Estado: {status}"
 
+    # ESTRUCTURA HTML PREMIUM (Tailwind CSS Modo Oscuro - BTS Style)
     html_premium = f"""
     <!DOCTYPE html>
     <html lang="es">
@@ -88,13 +100,13 @@ def home():
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
             .bts-gradient {{
-                background: linear-gradient(135deg, #18181b 0%, #09090b 100%);
+                background: linear-gradient(135deg, #18181b 0%, #030303 100%);
             }}
             .gold-text {{
-                color: #d97706;
+                color: #f59e0b;
             }}
             .spinning {{
-                animation: spin 6s linear infinite;
+                animation: spin 8s linear infinite;
             }}
             @keyframes spin {{
                 from {{ transform: rotate(0deg); }}
@@ -104,26 +116,26 @@ def home():
     </head>
     <body class="bts-gradient text-zinc-100 font-sans min-h-screen relative selection:bg-purple-500/30 pb-24">
 
-        <div class="absolute top-0 right-0 w-96 h-96 bg-zinc-800/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute bottom-20 left-0 w-96 h-96 bg-purple-900/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute top-0 right-0 w-96 h-96 bg-purple-900/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-20 left-0 w-96 h-96 bg-zinc-800/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        <audio id="arirang-audio" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"></audio>
+        <audio id="arirang-audio" loop src="https://stream.nct.vn/resa/2603/38/c5/c8y91sy70s_hq.mp3"></audio>
 
         <div class="max-w-4xl mx-auto px-4 py-8 relative z-10">
             
             <header class="flex flex-col md:flex-row md:justify-between md:items-center border-b border-zinc-800 pb-6 mb-8 gap-4">
                 <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-zinc-700 via-purple-900 to-zinc-600 p-[1px] shadow-xl">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-zinc-700 via-purple-950 to-zinc-600 p-[1px] shadow-xl">
                         <div class="w-full h-full bg-black rounded-2xl flex items-center justify-center text-xl font-bold text-zinc-300 tracking-wider">
                             ㅇㄹㄹ
                         </div>
                     </div>
                     <div>
                         <div class="flex items-center gap-2 text-zinc-400 font-medium text-xs tracking-widest uppercase">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> ARIRANG SYSTEM EDITION
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> ARIRANG SPECIAL EDITION
                         </div>
                         <h1 class="text-3xl font-black tracking-tight text-white bg-gradient-to-r from-white via-zinc-400 to-zinc-200 bg-clip-text text-transparent">BTS Stanford 2026</h1>
-                        <p class="text-zinc-500 text-sm mt-0.5"><i class="fa-solid fa-gantry mr-1 text-purple-500"></i> Stanford Football Stadium — Sección 120</p>
+                        <p class="text-zinc-500 text-sm mt-0.5"><i class="fa-solid fa-gantry mr-1 text-purple-600"></i> Stanford Football Stadium — Sección 120</p>
                     </div>
                 </div>
                 
@@ -143,119 +155,117 @@ def home():
                         <i class="fa-solid fa-bolt text-purple-400 group-hover:scale-110 transition-transform"></i>
                     </div>
                     <div class="text-4xl font-black text-white tracking-tight">
-                        {"$" + str(best) if best else '<span class="text-xl font-normal text-zinc-600">Buscando...</span>'}
+                        {"$" + str(best) if best else '<span class="text-xl font-normal text-zinc-600">Escaneando...</span>'}
                     </div>
-                    <p class="text-[11px] text-purple-500/80 mt-2 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>Tarifas estimadas incluidas</p>
+                    <p class="text-[11px] text-purple-500/80 mt-2 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>Sincronizado al instante con StubHub</p>
                 </div>
 
                 <div class="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm hover:border-amber-500/20 transition-all group">
                     <div class="flex justify-between items-center text-zinc-500 mb-2">
-                        <span class="text-xs font-bold tracking-wider uppercase">Objetivo Base</span>
+                        <span class="text-xs font-bold tracking-wider uppercase">Objetivo Army</span>
                         <i class="fa-solid fa-crown text-amber-500 group-hover:scale-110 transition-transform"></i>
                     </div>
                     <div class="text-4xl font-black text-amber-500 tracking-tight">
                         ${BASE_PRICE}
                     </div>
-                    <p class="text-[11px] text-amber-500/80 mt-2 font-medium"><i class="fa-solid fa-bell mr-1"></i>Enrutado al supergrupo</p>
+                    <p class="text-[11px] text-amber-500/80 mt-2 font-medium"><i class="fa-solid fa-bell mr-1"></i>Alerta directa al supergrupo</p>
                 </div>
 
                 <div class="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm hover:border-zinc-700 transition-all sm:col-span-2 lg:col-span-1">
                     <div class="flex justify-between items-center text-zinc-500 mb-2">
-                        <span class="text-xs font-bold tracking-wider uppercase">Caída de Precio</span>
+                        <span class="text-xs font-bold tracking-wider uppercase">Drop Porcentual</span>
                         <i class="fa-solid fa-chart-line text-zinc-400"></i>
                     </div>
                     <div class="text-4xl font-black text-white tracking-tight">
                         {f'<span class="text-emerald-400">{drop}%</span>' if drop and drop > 0 else '<span class="text-zinc-600 text-2xl font-bold">0.00%</span>'}
                     </div>
-                    <p class="text-[11px] text-zinc-600 mt-2">Diferencia porcentual actual</p>
+                    <p class="text-[11px] text-zinc-600 mt-2">Diferencia respecto a la Base</p>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                 
-                <main class="lg:col-span-2 bg-zinc-950/60 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md flex flex-col justify-between">
-                    <div>
-                        <div class="px-6 py-4 bg-zinc-900/20 border-b border-zinc-800 flex justify-between items-center">
-                            <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300"><i class="fa-solid fa-ticket-simple mr-2 gold-text"></i>Asientos Disponibles</h2>
-                            <span class="bg-zinc-900 text-zinc-400 text-xs px-2.5 py-1 rounded-full font-bold border border-zinc-800">
-                                {len(prices) if prices else 0} EN LISTA
-                            </span>
-                        </div>
+                <main class="lg:col-span-2 bg-zinc-950/60 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md">
+                    <div class="px-6 py-4 bg-zinc-900/20 border-b border-zinc-800 flex justify-between items-center">
+                        <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300"><i class="fa-solid fa-ticket-simple mr-2 gold-text"></i>Boletos Disponibles — Sección 120</h2>
+                        <span class="bg-zinc-900 text-zinc-400 text-xs px-2.5 py-1 rounded-full font-bold border border-zinc-800">
+                            {len(prices) if prices else 0} EN LISTA
+                        </span>
+                    </div>
 
-                        <div class="divide-y divide-zinc-900">
+                    <div class="divide-y divide-zinc-900">
     """
 
     if prices:
         for price in prices:
             html_premium += f"""
-                            <div class="px-6 py-4 flex justify-between items-center hover:bg-zinc-900/20 transition-colors group">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400 group-hover:bg-purple-900/20 transition-all">
-                                        <i class="fa-solid fa-music text-xs group-hover:animate-bounce"></i>
-                                    </div>
-                                    <div>
-                                        <p class="font-semibold text-sm text-zinc-300 group-hover:text-white transition-colors">Sección 120 — 1 Ticket</p>
-                                        <p class="text-xs text-zinc-500">Filtro Smart-Scrape Activo</p>
-                                    </div>
+                        <div class="px-6 py-4 flex justify-between items-center hover:bg-zinc-900/20 transition-colors group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400 group-hover:bg-purple-900/20 transition-all">
+                                    <i class="fa-solid fa-music text-xs group-hover:animate-bounce"></i>
                                 </div>
-                                <div class="text-right">
-                                    <p class="text-2xl font-black text-white tracking-tight">${price}</p>
-                                    <span class="text-[9px] uppercase tracking-widest font-bold text-amber-500/80">Confirmado</span>
+                                <div>
+                                    <p class="font-semibold text-sm text-zinc-300 group-hover:text-white transition-colors">1 Ticket — Fila Seleccionada</p>
+                                    <p class="text-xs text-zinc-500">Filtrado vía Browserless Smart Engine</p>
                                 </div>
                             </div>
+                            <div class="text-right">
+                                <p class="text-2xl font-black text-white tracking-tight">${price}</p>
+                                <span class="text-[9px] uppercase tracking-widest font-bold text-amber-500/80">Confirmado</span>
+                            </div>
+                        </div>
             """
     else:
         html_premium += """
-                            <div class="p-16 text-center">
-                                <div class="text-zinc-800 text-5xl mb-3 animate-pulse">ㅇㄹㄹ</div>
-                                <p class="text-zinc-500 font-medium text-sm tracking-wide">Esperando respuesta de StubHub...</p>
-                            </div>
+                        <div class="p-16 text-center">
+                            <div class="text-zinc-800 text-5xl mb-3 animate-pulse">ㅇㄹㄹ</div>
+                            <p class="text-zinc-500 font-medium text-sm tracking-wide">Esperando respuesta del servidor...</p>
+                        </div>
         """
 
-    # 🔥 ARTE OFICIAL INTEGRADOR DEL REGRESO DE BTS (ARIRANG CONCEPT COVER)
+    # 🔥 ARTE OFICIAL DE ARIRANG: LA IMAGEN REAL QUE ME PASASTE
     html_premium += f"""
-                        </div>
                     </div>
                 </main>
 
-                <div class="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-4 shadow-2xl backdrop-blur-md flex flex-col items-center justify-center text-center">
-                    <div class="text-zinc-500 font-bold text-[10px] tracking-widest uppercase mb-3"><i class="fa-solid fa-disc-drive mr-1"></i> ARIRANG OFFICIAL COVER</div>
+                <div class="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-5 shadow-2xl backdrop-blur-md flex flex-col items-center justify-center text-center">
+                    <div class="text-zinc-600 font-bold text-[10px] tracking-widest uppercase mb-3"><i class="fa-solid fa-compact-disc mr-1 text-purple-600"></i> ARIRANG ALBUM CONCEPT</div>
                     <div class="w-full aspect-square rounded-xl overflow-hidden shadow-inner border border-zinc-800 bg-zinc-900 relative group">
-                        <img src="http://googleusercontent.com/image_collection/image_retrieval/10820998892600292194" alt="BTS Arirang Album Cover 2026" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        <img src="https://s1.ticketm.net/dam/a/cac/79200b54-8f97-4909-a952-46af7db06cac_TABLET_LANDSCAPE_LARGE_16_9.jpg" alt="BTS Arirang Official Album Cover" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
                     </div>
                     <div class="mt-4">
-                        <p class="text-xs font-bold text-white tracking-wide">ARIRANG (아리랑)</p>
-                        <p class="text-[10px] text-purple-400 font-semibold uppercase mt-0.5 tracking-wider">Concept Photo #1 — Studio Album</p>
+                        <p class="text-xs font-extrabold text-white tracking-wide">ARIRANG (아리랑)</p>
+                        <p class="text-[10px] text-purple-500 font-bold uppercase mt-0.5 tracking-widest">Concept Photo #1 — BTS Back</p>
                     </div>
                 </div>
 
             </div>
 
             <section class="bg-zinc-950/40 border border-zinc-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm mb-8">
-                <h2 class="text-sm font-bold uppercase tracking-widest text-purple-400 mb-4"><i class="fa-solid fa-icons mr-2"></i> Army Space & Hype Zone</h2>
+                <h2 class="text-sm font-bold uppercase tracking-widest text-purple-500 mb-4"><i class="fa-solid fa-icons mr-2"></i> Army Space & Hype Zone</h2>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 text-center">
                         <span class="text-3xl">⚔️🔥</span>
                         <p class="text-xs font-bold text-zinc-300 mt-2 tracking-wider">TRACK EN REPRODUCCIÓN</p>
-                        <p class="text-[11px] text-zinc-500 mt-1">"Hooligan" mezcla perfectamente la crudeza del hip-hop con cuerdas clásicas coreanas. ¡Épico!</p>
+                        <p class="text-[11px] text-zinc-500 mt-1 px-4">"Hooligan" de BTS sonando de fondo. ¡Prepárate para el rap agresivo y las cuerdas tradicionales!</p>
                     </div>
-                    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 text-center flex flex-col justify-center">
+                    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 text-center">
                         <span class="text-3xl">💸😭</span>
                         <p class="text-xs font-bold text-zinc-300 mt-2 tracking-wider">ESTADO DE LA BILLETERA</p>
-                        <p class="text-[11px] text-zinc-500 mt-1">"Tratando de mantener la sonrisa frente a las cámaras de StubHub mientras espero el drop"</p>
+                        <p class="text-[11px] text-zinc-500 mt-1 px-4">"Army calculando cómo sobrevivir el mes después de ver los precios de la Sección 120 en StubHub"</p>
                     </div>
                 </div>
             </section>
 
-            <footer class="mt-12 text-center text-zinc-600 text-[11px] font-medium tracking-wider flex flex-col sm:flex-row sm:justify-between gap-2 px-2">
+            <footer class="mt-12 text-center text-zinc-700 text-[11px] font-medium tracking-wider flex flex-col sm:flex-row sm:justify-between gap-2 px-2">
                 <p>© 2026 ARIRANG TRACKING RADAR — ARMY SPECIAL DEV EDITION</p>
-                <p><i class="fa-solid fa-shield-heart mr-1 text-purple-800"></i> Conexión Encriptada Activa</p>
+                <p><i class="fa-solid fa-shield-heart mr-1 text-purple-800"></i> Monitoreo Continuo Activo</p>
             </footer>
 
         </div>
 
         <div class="fixed bottom-4 right-4 bg-zinc-950/90 border border-zinc-800 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-3 max-w-xs z-50">
-            <div id="disc-icon" class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-800 to-zinc-700 flex items-center justify-center text-white text-xs border border-zinc-700">
+            <div id="disc-icon" class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-700 to-zinc-700 flex items-center justify-center text-white text-xs border border-zinc-700 shadow-inner">
                 <i class="fa-solid fa-compact-disc"></i>
             </div>
             <div class="flex-1 min-w-0 pr-2">
@@ -293,6 +303,7 @@ def home():
     
     return html_premium
 
+# Rutas API internas por si necesitas JSON
 @app.route("/api")
 def api():
     return jsonify(data)
