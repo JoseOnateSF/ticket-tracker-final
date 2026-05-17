@@ -1,6 +1,7 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, Response
 import threading
 import time
+import requests
 
 from scraper import get_prices
 from notifier import send_telegram
@@ -8,7 +9,6 @@ from config import BASE_PRICE, CHECK_INTERVAL, STUBHUB_URL
 
 app = Flask(__name__)
 
-# Base de datos en vivo del bot
 data = {
     "prices": [],
     "best": None,
@@ -16,7 +16,6 @@ data = {
     "status": "starting"
 }
 
-# Niveles de alerta por caída de precio
 def get_level(drop):
     if drop >= 30:
         return "💥 CRÍTICO"
@@ -28,7 +27,6 @@ def get_level(drop):
         return "🔵 LEVE"
     return None
 
-# Hilo de monitoreo en segundo plano
 def monitor():
     time.sleep(5)  # deja arrancar Flask
 
@@ -36,21 +34,17 @@ def monitor():
 
     while True:
         try:
-            # Llama al raspador avanzado con evasión de CloudFront
             prices = get_prices()
 
             if prices:
                 best = min(prices)
-                # Calcula el drop porcentual real
                 drop = ((BASE_PRICE - best) / BASE_PRICE) * 100
 
-                # Actualiza el diccionario 'data' para la web
                 data["prices"] = prices
                 data["best"] = best
                 data["drop"] = round(drop, 2)
                 data["status"] = "running"
 
-                # Verifica el nivel de drop para mandar Telegram
                 level = get_level(drop)
 
                 if level and level != last_level:
@@ -69,26 +63,42 @@ def monitor():
             print("MONITOR ERROR:", e)
             data["status"] = str(e)
 
-        # Tiempo de espera entre escaneos
         time.sleep(CHECK_INTERVAL)
 
-# ARRANQUE DEL HILO EN SEGUNDO PLANO
+# ARRANQUE DEL MONITOR EN SEGUNDO PLANO
 threading.Thread(target=monitor, daemon=True).start()
 
-# 🔥 RUTA PRINCIPAL VISTA: Dashboard Visual Premium de BTS
+# 🔥 PROXY INTERMEDIO: Tu servidor Railway descarga el stream y burla el bloqueo de hotlink
+@app.route("/play_hooligan")
+def play_hooligan():
+    # Tu enlace original exacto que quieres reproducir
+    url_real = "https://stream.nct.vn/resa/2603/38/c5/c8y91sy70s_hq.mp3"
+    
+    # Engañamos al servidor fingiendo que somos un navegador normal (User-Agent) y quitamos el Referer
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "" 
+    }
+    
+    req = requests.get(url_real, headers=headers, stream=True)
+    
+    # Creamos un túnel de datos directo
+    def generate():
+        for chunk in req.iter_content(chunk_size=4096):
+            yield chunk
+            
+    return Response(generate(), content_type="audio/mpeg")
+
+
 @app.route("/")
 def home():
-    # Extrae datos en vivo
     best = data.get("best")
     prices = data.get("prices", [])
     drop = data.get("drop", 0)
     status = data.get("status", "desconocido")
     
-    # Colores dinámicos del estatus
-    status_color = "bg-emerald-500" if status == "running" else "bg-amber-500"
     status_label = "Radar Conectado" if status == "running" else f"Estado: {status}"
 
-    # ESTRUCTURA HTML PREMIUM (Tailwind CSS Modo Oscuro - BTS Style)
     html_premium = f"""
     <!DOCTYPE html>
     <html lang="es">
@@ -102,9 +112,6 @@ def home():
             .bts-gradient {{
                 background: linear-gradient(135deg, #18181b 0%, #030303 100%);
             }}
-            .gold-text {{
-                color: #f59e0b;
-            }}
             .spinning {{
                 animation: spin 8s linear infinite;
             }}
@@ -117,18 +124,15 @@ def home():
     <body class="bts-gradient text-zinc-100 font-sans min-h-screen relative selection:bg-purple-500/30 pb-24">
 
         <div class="absolute top-0 right-0 w-96 h-96 bg-purple-900/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute bottom-20 left-0 w-96 h-96 bg-zinc-800/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        <audio id="arirang-audio" loop src="https://stream.nct.vn/resa/2603/38/c5/c8y91sy70s_hq.mp3"></audio>
+        <audio id="arirang-audio" loop src="/play_hooligan"></audio>
 
         <div class="max-w-4xl mx-auto px-4 py-8 relative z-10">
             
             <header class="flex flex-col md:flex-row md:justify-between md:items-center border-b border-zinc-800 pb-6 mb-8 gap-4">
                 <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-zinc-700 via-purple-950 to-zinc-600 p-[1px] shadow-xl">
-                        <div class="w-full h-full bg-black rounded-2xl flex items-center justify-center text-xl font-bold text-zinc-300 tracking-wider">
-                            ㅇㄹㄹ
-                        </div>
+                    <div class="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 p-2 flex items-center justify-center shadow-xl">
+                        <img src="https://e7.pngegg.com/pngimages/932/472/png-clipart-bts-logo-k-pop-design-bts-logo-angle-white-thumbnail.png" alt="BTS Logo" class="w-full h-full object-contain invert opacity-90">
                     </div>
                     <div>
                         <div class="flex items-center gap-2 text-zinc-400 font-medium text-xs tracking-widest uppercase">
@@ -163,7 +167,7 @@ def home():
                 <div class="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm hover:border-amber-500/20 transition-all group">
                     <div class="flex justify-between items-center text-zinc-500 mb-2">
                         <span class="text-xs font-bold tracking-wider uppercase">Objetivo Army</span>
-                        <i class="fa-solid fa-crown text-amber-500 group-hover:scale-110 transition-transform"></i>
+                        <i class="fa-solid fa-crown text-amber-400 group-hover:scale-110 transition-transform"></i>
                     </div>
                     <div class="text-4xl font-black text-amber-500 tracking-tight">
                         ${BASE_PRICE}
@@ -187,7 +191,7 @@ def home():
                 
                 <main class="lg:col-span-2 bg-zinc-950/60 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md">
                     <div class="px-6 py-4 bg-zinc-900/20 border-b border-zinc-800 flex justify-between items-center">
-                        <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300"><i class="fa-solid fa-ticket-simple mr-2 gold-text"></i>Boletos Disponibles — Sección 120</h2>
+                        <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-300"><i class="fa-solid fa-ticket-simple mr-2 text-amber-500"></i>Boletos Disponibles — Sección 120</h2>
                         <span class="bg-zinc-900 text-zinc-400 text-xs px-2.5 py-1 rounded-full font-bold border border-zinc-800">
                             {len(prices) if prices else 0} EN LISTA
                         </span>
@@ -218,20 +222,19 @@ def home():
     else:
         html_premium += """
                         <div class="p-16 text-center">
-                            <div class="text-zinc-800 text-5xl mb-3 animate-pulse">ㅇㄹㄹ</div>
+                            <div class="text-zinc-800 text-5xl mb-3 animate-pulse">⟭⟬</div>
                             <p class="text-zinc-500 font-medium text-sm tracking-wide">Esperando respuesta del servidor...</p>
                         </div>
         """
 
-    # 🔥 ARTE OFICIAL DE ARIRANG: LA IMAGEN REAL QUE ME PASASTE
     html_premium += f"""
                     </div>
                 </main>
 
                 <div class="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-5 shadow-2xl backdrop-blur-md flex flex-col items-center justify-center text-center">
                     <div class="text-zinc-600 font-bold text-[10px] tracking-widest uppercase mb-3"><i class="fa-solid fa-compact-disc mr-1 text-purple-600"></i> ARIRANG ALBUM CONCEPT</div>
-                    <div class="w-full aspect-square rounded-xl overflow-hidden shadow-inner border border-zinc-800 bg-zinc-900 relative group">
-                        <img src="https://s1.ticketm.net/dam/a/cac/79200b54-8f97-4909-a952-46af7db06cac_TABLET_LANDSCAPE_LARGE_16_9.jpg" alt="BTS Arirang Official Album Cover" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                    <div class="w-full aspect-square rounded-xl overflow-hidden shadow-inner border border-zinc-800 bg-zinc-900 flex items-center justify-center p-2 group">
+                        <img src="https://s1.ticketm.net/dam/a/cac/79200b54-8f97-4909-a952-46af7db06cac_TABLET_LANDSCAPE_LARGE_16_9.jpg" alt="BTS Arirang Official Album Cover" class="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105">
                     </div>
                     <div class="mt-4">
                         <p class="text-xs font-extrabold text-white tracking-wide">ARIRANG (아리랑)</p>
@@ -257,9 +260,9 @@ def home():
                 </div>
             </section>
 
-            <footer class="mt-12 text-center text-zinc-700 text-[11px] font-medium tracking-wider flex flex-col sm:flex-row sm:justify-between gap-2 px-2">
+            <footer class="mt-12 text-center text-zinc-600 text-[11px] font-medium tracking-wider flex flex-col sm:flex-row sm:justify-between gap-2 px-2">
                 <p>© 2026 ARIRANG TRACKING RADAR — ARMY SPECIAL DEV EDITION</p>
-                <p><i class="fa-solid fa-shield-heart mr-1 text-purple-800"></i> Monitoreo Continuo Activo</p>
+                <p><i class="fa-solid fa-shield-heart mr-1 text-purple-800"></i> Conexión Encriptada Activa</p>
             </footer>
 
         </div>
@@ -284,10 +287,11 @@ def home():
 
             function toggleAudio() {{
                 if (audio.paused) {{
-                    audio.play();
-                    playIcon.classList.remove('fa-play');
-                    playIcon.classList.add('fa-pause');
-                    discIcon.classList.add('spinning');
+                    audio.play().then(() => {{
+                        playIcon.classList.remove('fa-play');
+                        playIcon.classList.add('fa-pause');
+                        discIcon.classList.add('spinning');
+                    }}).catch(e => console.log("Interacción requerida:", e));
                 }} else {{
                     audio.pause();
                     playIcon.classList.remove('fa-pause');
@@ -303,7 +307,6 @@ def home():
     
     return html_premium
 
-# Rutas API internas por si necesitas JSON
 @app.route("/api")
 def api():
     return jsonify(data)
