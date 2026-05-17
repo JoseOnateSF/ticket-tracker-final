@@ -13,10 +13,8 @@ def get_prices():
 
     print("Scraper iniciando... Conectando al endpoint /smart-scrape de Browserless")
     
-    # 🔥 CAMBIO DEFINITIVO: Usamos exactamente el endpoint de tu captura de pantalla
     api_url = f"https://chrome.browserless.io/smart-scrape?token={token}"
     
-    # Estructura idéntica al comando cURL de tu imagen de éxito
     payload = {
         "url": STUBHUB_URL,
         "formats": ["html"]
@@ -27,7 +25,6 @@ def get_prices():
     }
 
     try:
-        # Enviamos la petición POST directa
         response = requests.post(api_url, json=payload, headers=cabeceras, timeout=90)
         
         if response.status_code != 200:
@@ -35,21 +32,33 @@ def get_prices():
             print(f"Detalle del error: {response.text}")
             return []
 
-        # El endpoint /smart-scrape devuelve un JSON estructurado con el HTML dentro
         response_json = response.json()
         
-        # Extraemos el contenido HTML del formato solicitado
+        # 🔥 NUEVO: Imprimimos las llaves del JSON para ver cómo estructuran la respuesta
+        print("Estructura JSON recibida de la API:", response_json.keys())
+
+        # Intentamos extraer el HTML buscando en las dos estructuras más comunes de Browserless
         content = ""
-        if "data" in response_json and len(response_json["data"]) > 0:
-            content = response_json["data"][0].get("html", "")
-            
+        
+        # Opción A: Viene como un string directo en 'data' (Formato común en Smart Scrape)
+        if "data" in response_json and isinstance(response_json["data"], str):
+            content = response_json["data"]
+        # Opción B: Viene dentro de un diccionario/objeto estructurado
+        elif "data" in response_json and isinstance(response_json["data"], dict):
+            content = response_json["data"].get("html", "")
+        # Opción C: Formato estándar de respuesta combinada
+        elif "html" in response_json:
+            content = response_json["html"]
+
         if not content:
-            print("Error: La API de Browserless respondió 200 pero el HTML no se encontró en la respuesta.")
+            # Si ninguna funcionó, imprimimos un pedazo del JSON para inspeccionarlo en el log
+            print("Estructura cruda del JSON:", str(response_json)[:300])
+            print("Error: El HTML no se encontró en las llaves conocidas.")
             return []
 
-        print("Página recibida con éxito desde /smart-scrape.")
+        print("Página HTML extraída con éxito de la API.")
 
-        # Convertimos a minúsculas para búsquedas flexibles que no fallen por una letra
+        # Convertimos a minúsculas para búsquedas flexibles
         content_lower = content.lower()
         keywords_lower = [k.lower() for k in EVENT_KEYWORDS]
         section_lower = SECTION_TARGET.lower()
