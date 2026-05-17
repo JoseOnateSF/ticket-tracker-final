@@ -12,30 +12,38 @@ def get_prices():
         )
 
         page = browser.new_page()
-        page.goto(STUBHUB_URL)
 
-        # esperar render React
-        page.wait_for_timeout(12000)
+        # 🔥 esperar carga real de red
+        page.goto(STUBHUB_URL, wait_until="networkidle", timeout=60000)
 
-        content = page.inner_text("body")
+        # 🔥 dar tiempo extra a React
+        page.wait_for_timeout(8000)
+
+        content = page.content()  # mejor que inner_text
 
         browser.close()
 
-        # 🔥 FILTRO 1: evento correcto
+        # 🔥 debug importante
+        print("SCRAPER LOADED PAGE")
+
+        # filtro evento
         if not any(k in content for k in EVENT_KEYWORDS):
+            print("EVENT NOT FOUND")
             return []
 
-        # 🔥 FILTRO 2: sección correcta
+        # filtro sección
         if SECTION_TARGET not in content:
+            print("SECTION NOT FOUND")
             return []
 
-        # 🔥 extracción precios
+        # extracción precios
         raw_prices = re.findall(r"\$(\d+)", content)
 
         for p in raw_prices:
             price = int(p)
-
             if 20 < price < 5000:
                 prices.append(price)
+
+        print("PRICES FOUND:", prices)
 
     return prices
