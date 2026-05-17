@@ -1,5 +1,5 @@
 from flask import Flask, jsonify
-import threading
+import multiprocessing
 import time
 
 from scraper import get_prices
@@ -8,7 +8,6 @@ from config import BASE_PRICE, CHECK_INTERVAL, STUBHUB_URL
 
 app = Flask(__name__)
 
-# 📊 estado global del sistema
 data = {
     "prices": [],
     "best": None,
@@ -16,7 +15,6 @@ data = {
     "status": "starting"
 }
 
-# 🧠 niveles de alerta
 def get_level(drop):
     if drop >= 30:
         return "💥 CRÍTICO"
@@ -29,7 +27,7 @@ def get_level(drop):
     return None
 
 
-# 🤖 MONITOR (SCRAPER LOOP)
+# 🤖 PROCESO SEPARADO (ESTO SÍ FUNCIONA EN RAILWAY)
 def monitor():
     last_level = None
 
@@ -65,17 +63,17 @@ def monitor():
                 data["status"] = "no data"
 
         except Exception as e:
-            data["status"] = f"error: {str(e)}"
+            data["status"] = str(e)
             print("ERROR:", e)
 
         time.sleep(CHECK_INTERVAL)
 
 
-# 🚀 ARRANCAR MONITOR AUTOMÁTICAMENTE (CLAVE EN RAILWAY)
-threading.Thread(target=monitor, daemon=True).start()
+# 🚀 ARRANQUE SEGURO EN RAILWAY
+process = multiprocessing.Process(target=monitor)
+process.start()
 
 
-# 🌐 FLASK API
 @app.route("/")
 def home():
     return jsonify(data)
@@ -84,8 +82,3 @@ def home():
 @app.route("/api")
 def api():
     return jsonify(data)
-
-
-# ⚠️ IMPORTANTE:
-# NO usamos if __name__ == "__main__"
-# porque Railway usa gunicorn
