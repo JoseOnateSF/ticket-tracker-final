@@ -96,7 +96,7 @@ def home():
     
     status_label = "Radar Conectado" if status == "running" else f"Estado: {status}"
 
-    # Construimos el bloque HTML inicial
+    # Bloque HTML Principal Inicial
     html_premium = f"""<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -116,10 +116,10 @@ def home():
             from {{ transform: rotate(0deg); }}
             to {{ transform: rotate(360deg); }}
         }}
-        /* 🔥 Limpia el fondo negro del thumbnail del logo */
+        /* 🔥 Remueve por completo el recuadro blanco exterior aislando solo el logo de las compuertas */
         .blend-logo {{
+            filter: invert(1) brightness(2) contrast(150%);
             mix-blend-mode: lighten;
-            filter: contrast(120%);
         }}
     </style>
 </head>
@@ -133,8 +133,8 @@ def home():
         
         <header class="flex flex-col md:flex-row md:justify-between md:items-center border-b border-zinc-800 pb-6 mb-8 gap-4">
             <div class="flex items-center gap-4">
-                <div class="w-16 h-14 rounded-xl flex items-center justify-center overflow-hidden">
-                    <img src="https://e7.pngegg.com/pngimages/932/472/png-clipart-bts-logo-k-pop-design-bts-logo-angle-white-thumbnail.png" alt="BTS Logo" class="w-full h-full object-cover blend-logo">
+                <div class="w-16 h-16 flex items-center justify-center overflow-hidden bg-transparent">
+                    <img src="https://e7.pngegg.com/pngimages/932/472/png-clipart-bts-logo-k-pop-design-bts-logo-angle-white-thumbnail.png" alt="BTS Logo" class="w-full h-full object-contain blend-logo">
                 </div>
                 <div>
                     <div class="flex items-center gap-2 text-zinc-400 font-medium text-xs tracking-widest uppercase">
@@ -201,7 +201,6 @@ def home():
 
                 <div class="divide-y divide-zinc-900">"""
 
-    # Inyectamos dinámicamente los boletos clickables
     if prices:
         for price in prices:
             html_premium += f"""
@@ -229,7 +228,6 @@ def home():
                         <p class="text-zinc-500 font-medium text-sm tracking-wide">Esperando respuesta del servidor...</p>
                     </div>"""
 
-    # Cerramos el bloque agregando el panel del álbum corregido
     html_premium += f"""
                 </div>
             </main>
@@ -293,13 +291,13 @@ def home():
                 audio.play().then(() => {{
                     playIcon.classList.remove('fa-play');
                     playIcon.classList.add('fa-pause');
-                    discIcon.classList.add('spinning');
+                    discIcon.add('spinning');
                 }}).catch(e => console.log("Interacción requerida:", e));
             }} else {{
                 audio.pause();
                 playIcon.classList.remove('fa-pause');
                 playIcon.classList.add('fa-play');
-                discIcon.classList.remove('spinning');
+                discIcon.remove('spinning');
             }}
         }}
     </script>
