@@ -19,13 +19,27 @@ def get_prices():
             # Conexión al navegador remoto
             browser = p.chromium.connect_over_cdp(ws_endpoint)
             
-            # Usar un User-Agent de un navegador real de Windows
+            # 🔥 DISFRAZ AVANZADO: Simulamos ser un humano en una Mac con Chrome actualizado
             context = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                viewport={"width": 1920, "height": 1080},
+                extra_http_headers={
+                    "Accept-Language": "en-US,en;q=0.9,es;q=0.8",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                    "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+                    "Sec-Ch-Ua-Mobile": "?0",
+                    "Sec-Ch-Ua-Platform": '"macOS"',
+                    "Sec-Fetch-Dest": "document",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "none",
+                    "Sec-Fetch-User": "?1",
+                    "Upgrade-Insecure-Requests": "1"
+                }
             )
             page = context.new_page()
 
             print("Scraper iniciando... navegando a la URL")
+            # domcontentloaded suele ser más rápido y menos propenso a timeouts por scripts de terceros
             page.goto(STUBHUB_URL, wait_until="domcontentloaded", timeout=60000)
 
             # 🔥 Dar tiempo extra a React para renderizar los precios
@@ -38,9 +52,12 @@ def get_prices():
 
             browser.close()
 
-            # 🔥 Detección de bloqueo de StubHub
+            # 🔥 Detección de bloqueo de StubHub o CloudFront
             if "Pardon Our Interruption" in title or "Security" in title:
-                print("ALERTA: StubHub bloqueó el acceso (Captcha detectado).")
+                print("ALERTA: StubHub activó el Captcha de seguridad.")
+                return []
+            elif "The request could not be satisfied" in title:
+                print("ALERTA CRÍTICA: CloudFront bloqueó la IP de Browserless.")
                 return []
 
             # 🔥 Hacer la búsqueda insensible a mayúsculas/minúsculas
