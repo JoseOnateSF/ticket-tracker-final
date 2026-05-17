@@ -68,25 +68,18 @@ def monitor():
 # ARRANQUE DEL MONITOR EN SEGUNDO PLANO
 threading.Thread(target=monitor, daemon=True).start()
 
-# 🔥 PROXY INTERMEDIO: Tu servidor Railway descarga el stream y burla el bloqueo de hotlink
+# PROXY INTERMEDIO PARA EL AUDIO
 @app.route("/play_hooligan")
 def play_hooligan():
-    # Tu enlace original exacto que quieres reproducir
     url_real = "https://stream.nct.vn/resa/2603/38/c5/c8y91sy70s_hq.mp3"
-    
-    # Engañamos al servidor fingiendo que somos un navegador normal (User-Agent) y quitamos el Referer
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Referer": "" 
     }
-    
     req = requests.get(url_real, headers=headers, stream=True)
-    
-    # Creamos un túnel de datos directo
     def generate():
         for chunk in req.iter_content(chunk_size=4096):
             yield chunk
-            
     return Response(generate(), content_type="audio/mpeg")
 
 
@@ -119,6 +112,10 @@ def home():
                 from {{ transform: rotate(0deg); }}
                 to {{ transform: rotate(360deg); }}
             }}
+            /* 🔥 Efecto para fusionar logos con fondos oscuros */
+            .blend-logo {{
+                mix-blend-mode: screen;
+            }}
         </style>
     </head>
     <body class="bts-gradient text-zinc-100 font-sans min-h-screen relative selection:bg-purple-500/30 pb-24">
@@ -131,8 +128,8 @@ def home():
             
             <header class="flex flex-col md:flex-row md:justify-between md:items-center border-b border-zinc-800 pb-6 mb-8 gap-4">
                 <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 p-2 flex items-center justify-center shadow-xl">
-                        <img src="https://e7.pngegg.com/pngimages/932/472/png-clipart-bts-logo-k-pop-design-bts-logo-angle-white-thumbnail.png" alt="BTS Logo" class="w-full h-full object-contain invert opacity-90">
+                    <div class="w-16 h-16 rounded-2xl flex items-center justify-center">
+                        <img src="https://e7.pngegg.com/pngimages/932/472/png-clipart-bts-logo-k-pop-design-bts-logo-angle-white-thumbnail.png" alt="BTS Logo" class="w-full h-full object-contain blend-logo opacity-95">
                     </div>
                     <div>
                         <div class="flex items-center gap-2 text-zinc-400 font-medium text-xs tracking-widest uppercase">
@@ -202,22 +199,25 @@ def home():
 
     if prices:
         for price in prices:
+            # 🔥 CORRECCIÓN: Ahora toda la celda es un enlace directo clickable a StubHub
             html_premium += f"""
-                        <div class="px-6 py-4 flex justify-between items-center hover:bg-zinc-900/20 transition-colors group">
+                        <a href="{STUBHUB_URL}" target="_blank" class="px-6 py-4 flex justify-between items-center hover:bg-zinc-900/40 transition-all group block cursor-pointer">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400 group-hover:bg-purple-900/20 transition-all">
-                                    <i class="fa-solid fa-music text-xs group-hover:animate-bounce"></i>
+                                <div class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400 group-hover:bg-purple-500/20 group-hover:text-purple-300 transition-all">
+                                    <i class="fa-solid fa-cart-shopping text-xs group-hover:scale-110 transition-transform"></i>
                                 </div>
                                 <div>
-                                    <p class="font-semibold text-sm text-zinc-300 group-hover:text-white transition-colors">1 Ticket — Fila Seleccionada</p>
-                                    <p class="text-xs text-zinc-500">Filtrado vía Browserless Smart Engine</p>
+                                    <p class="font-semibold text-sm text-zinc-300 group-hover:text-white transition-colors flex items-center gap-1.5">
+                                        1 Ticket disponible <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-zinc-600 group-hover:text-purple-400 transition-colors"></i>
+                                    </p>
+                                    <p class="text-xs text-zinc-500">Clic para ir a comprar a StubHub</p>
                                 </div>
                             </div>
                             <div class="text-right">
-                                <p class="text-2xl font-black text-white tracking-tight">${price}</p>
-                                <span class="text-[9px] uppercase tracking-widest font-bold text-amber-500/80">Confirmado</span>
+                                <p class="text-2xl font-black text-white tracking-tight group-hover:text-purple-300 transition-colors">${price}</p>
+                                <span class="text-[9px] uppercase tracking-widest font-bold text-amber-500/80">Comprar ya</span>
                             </div>
-                        </div>
+                        </a>
             """
     else:
         html_premium += """
@@ -296,21 +296,4 @@ def home():
                     audio.pause();
                     playIcon.classList.remove('fa-pause');
                     playIcon.classList.add('fa-play');
-                    discIcon.classList.remove('spinning');
-                }}
-            }}
-        </script>
-
-    </body>
-    </html>
-    """
-    
-    return html_premium
-
-@app.route("/api")
-def api():
-    return jsonify(data)
-
-@app.route("/health")
-def health():
-    return {"ok": True}
+                    discIcon.classList
