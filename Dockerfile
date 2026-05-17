@@ -1,13 +1,11 @@
-FROM mcr.microsoft.com/playwright/python:v1.47.0-jammy
+FROM python:3.10-slim
 
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# instalar chromium deps ya vienen incluidas en imagen oficial
-RUN playwright install chromium
-
-CMD ["gunicorn", "app:app", "-b", "0.0.0.0:8080"]
+# 🔥 Inyectamos el puerto dinámico de Railway de forma segura
+CMD sh -c "gunicorn app:app -b 0.0.0.0:${PORT:-8080}"
