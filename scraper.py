@@ -29,31 +29,15 @@ def get_prices():
         
         if response.status_code != 200:
             print(f"Error en la API de Browserless (Código {response.status_code})")
-            print(f"Detalle del error: {response.text}")
             return []
 
         response_json = response.json()
         
-        # 🔥 NUEVO: Imprimimos las llaves del JSON para ver cómo estructuran la respuesta
-        print("Estructura JSON recibida de la API:", response_json.keys())
-
-        # Intentamos extraer el HTML buscando en las dos estructuras más comunes de Browserless
-        content = ""
-        
-        # Opción A: Viene como un string directo en 'data' (Formato común en Smart Scrape)
-        if "data" in response_json and isinstance(response_json["data"], str):
-            content = response_json["data"]
-        # Opción B: Viene dentro de un diccionario/objeto estructurado
-        elif "data" in response_json and isinstance(response_json["data"], dict):
-            content = response_json["data"].get("html", "")
-        # Opción C: Formato estándar de respuesta combinada
-        elif "html" in response_json:
-            content = response_json["html"]
+        # 🔥 SOLUCIÓN: Extraemos el HTML directamente de la llave 'content' que vimos en el log
+        content = response_json.get("content", "")
 
         if not content:
-            # Si ninguna funcionó, imprimimos un pedazo del JSON para inspeccionarlo en el log
-            print("Estructura cruda del JSON:", str(response_json)[:300])
-            print("Error: El HTML no se encontró en las llaves conocidas.")
+            print("Error: La llave 'content' llegó vacía.")
             return []
 
         print("Página HTML extraída con éxito de la API.")
