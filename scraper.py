@@ -1,7 +1,7 @@
-from playwright.sync_api import sync_playwright
-from config import STUBHUB_URL, EVENT_KEYWORDS, SECTION_TARGET
-import re
 import os
+import re
+import requests
+from config import STUBHUB_URL, EVENT_KEYWORDS, SECTION_TARGET
 
 def get_prices():
     prices = []
@@ -11,79 +11,66 @@ def get_prices():
         print("ERROR: Falta configurar BROWSERLESS_TOKEN en Railway")
         return []
 
-    # 🔥 Agregamos stealth=true para evadir las defensas antibot de StubHub
-    ws_endpoint = f"wss://chrome.browserless.io?token={token}&stealth=true"
+    print("Scraper iniciando... Solicitando HTML renderizado a la API de Browserless")
+    
+    # Endpoint REST que imita el comportamiento de la página principal de Browserless
+    api_url = f"https://chrome.browserless.io/content?token={token}"
+    
+    # Configuramos la petición con el "Disfraz" y la acción del clic integrada
+    payload = {
+        "url": STUBHUB_URL,
+        "stealth": True,
+        "rejectResourceTypes": ["image", "media", "font"], # Ahorra datos y acelera la carga
+        "waitFor": 7000, # Espera 7 segundos a que React responda inicializado
+        "actions": [
+            {
+                "click": "text=1" # 🔥 SIMULA EL CLIC: Busca el texto "1" del popup y le hace clic automáticamente
+            }
+        ]
+    }
 
-    with sync_playwright() as p:
-        try:
-            # Conexión al navegador remoto
-            browser = p.chromium.connect_over_cdp(ws_endpoint)
-            
-            # 🔥 DISFRAZ AVANZADO: Simulamos ser un humano en una Mac con Chrome actualizado
-            context = browser.new_context(
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                viewport={"width": 1920, "height": 1080},
-                extra_http_headers={
-                    "Accept-Language": "en-US,en;q=0.9,es;q=0.8",
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-                    "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-                    "Sec-Ch-Ua-Mobile": "?0",
-                    "Sec-Ch-Ua-Platform": '"macOS"',
-                    "Sec-Fetch-Dest": "document",
-                    "Sec-Fetch-Mode": "navigate",
-                    "Sec-Fetch-Site": "none",
-                    "Sec-Fetch-User": "?1",
-                    "Upgrade-Insecure-Requests": "1"
-                }
-            )
-            page = context.new_page()
+    try:
+        # Enviamos la orden directa al motor de Browserless
+        response = requests.post(api_url, json=payload, timeout=90)
+        
+        if response.status_code != 200:
+            print(f"Error en la API de Browserless (Código {response.status_code})")
+            return []
 
-            print("Scraper iniciando... navegando a la URL")
-            # domcontentloaded suele ser más rápido y menos propenso a timeouts por scripts de terceros
-            page.goto(STUBHUB_URL, wait_until="domcontentloaded", timeout=60000)
+        content = response.text
+        
+        # Guardamos una pequeña muestra en el log para verificar qué cargó
+        print("Página recibida con éxito de la API.")
 
-            # 🔥 Dar tiempo extra a React para renderizar los precios
-            page.wait_for_timeout(10000)
+        # Verificación de Cortafuegos en el HTML devuelto
+        if "The request could not be satisfied" in content or "Pardon Our Interruption" in content:
+            print("ALERTA CRÍTICA: CloudFront bloqueó la petición REST de Browserless.")
+            return []
 
-            content = page.content()
-            title = page.title()
-            
-            print(f"PAGE TITLE: {title}")
+        # Convertimos todo a minúsculas para búsquedas flexibles que no fallen por una letra
+        content_lower = content.lower()
+        keywords_lower = [k.lower() for k in EVENT_KEYWORDS]
+        section_lower = SECTION_TARGET.lower()
 
-            browser.close()
+        if not any(k in content_lower for k in keywords_lower):
+            print("EVENT NOT FOUND - Las palabras clave del concierto no aparecen en el HTML.")
+            return []
 
-            # 🔥 Detección de bloqueo de StubHub o CloudFront
-            if "Pardon Our Interruption" in title or "Security" in title:
-                print("ALERTA: StubHub activó el Captcha de seguridad.")
-                return []
-            elif "The request could not be satisfied" in title:
-                print("ALERTA CRÍTICA: CloudFront bloqueó la IP de Browserless.")
-                return []
+        if section_lower not in content_lower:
+            print(f"SECTION '{SECTION_TARGET}' NOT FOUND - La sección no aparece en el HTML.")
+            return []
 
-            # 🔥 Hacer la búsqueda insensible a mayúsculas/minúsculas
-            content_lower = content.lower()
-            keywords_lower = [k.lower() for k in EVENT_KEYWORDS]
-            section_lower = SECTION_TARGET.lower()
+        # Extracción matemática de los precios ($X)
+        raw_prices = re.findall(r"\$(\d+)", content)
 
-            if not any(k in content_lower for k in keywords_lower):
-                print("EVENT NOT FOUND - Las palabras clave no están en la página")
-                return []
+        for p in raw_prices:
+            price = int(p)
+            if 20 < price < 5000:
+                prices.append(price)
 
-            if section_lower not in content_lower:
-                print(f"SECTION '{SECTION_TARGET}' NOT FOUND")
-                return []
+        print("PRICES FOUND:", prices)
 
-            # Extracción de precios
-            raw_prices = re.findall(r"\$(\d+)", content)
-
-            for p in raw_prices:
-                price = int(p)
-                if 20 < price < 5000:
-                    prices.append(price)
-
-            print("PRICES FOUND:", prices)
-
-        except Exception as e:
-            print(f"Error crítico en el scraper: {e}")
+    except Exception as e:
+        print(f"Error crítico en el scraper REST: {e}")
 
     return prices
