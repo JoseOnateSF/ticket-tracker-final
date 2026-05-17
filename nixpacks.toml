@@ -1,0 +1,28 @@
+[phases.setup]
+nixPkgs = [
+  "python310",
+  "glib",
+  "nss",
+  "nspr",
+  "atk",
+  "dbus",
+  "libx11",
+  "libxcb",
+  "libxcomposite",
+  "libxdamage",
+  "libxext",
+  "libxfixes",
+  "libxrandr",
+  "mesa",
+  "cairo",
+  "pango"
+]
+
+[phases.install]
+cmds = [
+  "pip install -r requirements.txt",
+  "playwright install chromium"
+]
+
+[start]
+cmd = "gunicorn app:app"
