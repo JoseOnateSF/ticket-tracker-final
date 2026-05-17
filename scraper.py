@@ -11,43 +11,69 @@ def get_prices():
         print("ERROR: Falta configurar BROWSERLESS_TOKEN en Railway")
         return []
 
-    print("Scraper iniciando... Solicitando HTML renderizado a la API de Browserless")
+    print("Scraper iniciando... Enviando script de automatización a la API /function de Browserless")
     
-    # Endpoint REST oficial de Browserless para extraer contenido
-    api_url = f"https://chrome.browserless.io/content?token={token}"
+    # 🔥 CAMBIO CLAVE: Usamos el endpoint /function que sí permite acciones y evasión avanzada
+    api_url = f"https://chrome.browserless.io/function?token={token}"
     
-    # Estructura de carga (Payload) con el formato de acciones corregido
+    # Escribimos un micro-script en JavaScript que se ejecutará dentro de Browserless
+    # Esto imita exactamente el comportamiento del botón "Run" de su página web
+    js_code = f"""
+    module.exports = async ({{ page }}) => {{
+        // 1. Configurar un User-Agent humano real
+        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+        
+        // 2. Navegar a la URL de StubHub
+        console.log('Navegando...');
+        await page.goto('{STUBHUB_URL}', {{ waitUntil: 'domcontentloaded', timeout: 60000 }});
+        
+        // 3. Esperar un momento a que aparezca el popup
+        await page.waitForTimeout(4000);
+        
+        // 4. Hacer clic en el botón '1' para romper el popup de boletos y cargar React
+        try {{
+            await page.click('text=1', {{ timeout: 5000 }});
+            console.log('¡Clic en selector de 1 boleto exitoso!');
+            await page.waitForTimeout(6000); // Esperar a que carguen los precios reales
+        }} catch (err) {{
+            console.log('El popup no apareció, continuando...');
+        }}
+        
+        // 5. Retornar el HTML completamente renderizado y con los precios expuestos
+        const html = await page.content();
+        return {{ data: html }};
+    }};
+    """
+
     payload = {
-        "url": STUBHUB_URL,
-        "stealth": True,
-        "rejectResourceTypes": ["image", "media", "font"],  # Optimiza el consumo de datos
-        "waitFor": 7000,  # Espera inicial para que cargue la estructura de la página
-        "actions": [
-            {
-                "type": "click",
-                "selector": "text=1"  # 🔥 Formato correcto: Hace clic en el "1" para desbloquear precios
-            }
-        ]
+        "code": js_code
     }
 
     try:
-        # Enviamos la petición POST emulando la herramienta de su web principal
-        response = requests.post(api_url, json=payload, timeout=90)
+        # Enviamos el script al motor de Browserless
+        response = requests.post(api_url, json=payload, headers={{"Content-Type": "application/json"}}, timeout=90)
         
         if response.status_code != 200:
             print(f"Error en la API de Browserless (Código {response.status_code})")
             print(f"Detalle del error: {response.text}")
             return []
 
-        content = response.text
-        print("Página recibida y procesada con éxito por la API de Browserless.")
-
-        # Verificación de Cortafuegos en el HTML devuelto por si acaso
-        if "The request could not be satisfied" in content or "Pardon Our Interruption" in content:
-            print("ALERTA CRÍTICA: CloudFront logró bloquear la petición de la API.")
+        # El endpoint /function devuelve un JSON con la estructura {"result": {"data": "HTML..."}}
+        response_json = response.json()
+        content = response_json.get("result", {}).get("data", "")
+        
+        if not content:
+            print("Error: La API de Browserless respondió con éxito pero el HTML está vacío.")
             return []
 
-        # Convertimos a minúsculas para que las búsquedas no fallen por diferencias de letras
+        print("Página recibida y procesada con éxito a nivel de código.")
+
+        # Verificación de Cortafuegos en el HTML devuelto
+        if "The request could not be satisfied" in content or "Pardon Our Interruption" in content:
+            print("ALERTA CRÍTICA: CloudFront bloqueó la petición incluso a través de /function.")
+            return []
+
+        # Convertimos a minúsculas para búsquedas flexibles
         content_lower = content.lower()
         keywords_lower = [k.lower() for k in EVENT_KEYWORDS]
         section_lower = SECTION_TARGET.lower()
@@ -71,6 +97,6 @@ def get_prices():
         print("PRICES FOUND:", prices)
 
     except Exception as e:
-        print(f"Error crítico en el scraper REST: {e}")
+        print(f"Error crítico en el scraper /function: {e}")
 
     return prices
