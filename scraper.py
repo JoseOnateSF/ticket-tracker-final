@@ -16,9 +16,10 @@ def get_prices():
     # Endpoint /function para ejecutar el script de JS personalizado
     api_url = f"https://chrome.browserless.io/function?token={token}"
     
-    # Construimos el código JS limpiamente sin usar F-strings para evitar conflictos de llaves de Python
+    # 🔥 CORRECCIÓN: Cambiamos module.exports por export default async (context) => ...
+    # Browserless expone el objeto 'page' dentro del primer argumento (context)
     js_code = """
-    module.exports = async ({ page }) => {
+    export default async ({ page }) => {
         // 1. Configurar un User-Agent humano real
         await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
         
@@ -48,7 +49,6 @@ def get_prices():
         "code": js_code
     }
 
-    # Definimos los headers de forma limpia en una variable separada
     cabeceras = {
         "Content-Type": "application/json"
     }
