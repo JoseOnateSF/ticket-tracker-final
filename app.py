@@ -1,5 +1,5 @@
 from flask import Flask, jsonify
-import multiprocessing
+import threading
 import time
 
 from scraper import get_prices
@@ -27,19 +27,18 @@ def get_level(drop):
     return None
 
 
-# 🤖 PROCESO SEPARADO (ESTO SÍ FUNCIONA EN RAILWAY)
 def monitor():
+    time.sleep(5)  # deja arrancar Flask
+
     last_level = None
 
     while True:
         try:
             prices = get_prices()
-
             print("PRICES:", prices)
 
             if prices:
                 best = min(prices)
-
                 drop = ((BASE_PRICE - best) / BASE_PRICE) * 100
 
                 data["prices"] = prices
@@ -58,20 +57,18 @@ def monitor():
                         f"{STUBHUB_URL}"
                     )
                     last_level = level
-
             else:
                 data["status"] = "no data"
 
         except Exception as e:
-            data["status"] = str(e)
             print("ERROR:", e)
+            data["status"] = str(e)
 
         time.sleep(CHECK_INTERVAL)
 
 
-# 🚀 ARRANQUE SEGURO EN RAILWAY
-process = multiprocessing.Process(target=monitor)
-process.start()
+# 🚀 ARRANQUE CORRECTO
+threading.Thread(target=monitor, daemon=True).start()
 
 
 @app.route("/")
@@ -82,3 +79,8 @@ def home():
 @app.route("/api")
 def api():
     return jsonify(data)
+
+
+@app.route("/health")
+def health():
+    return {"ok": True}
