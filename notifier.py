@@ -2,9 +2,11 @@ import requests
 from config import TELEGRAM_TOKEN, CHAT_ID
 
 def send_telegram(message):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-
-    requests.post(url, data={
-        "chat_id": CHAT_ID,
-        "text": message
-    })
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        requests.post(url, data={
+            "chat_id": CHAT_ID,
+            "text": message
+        })
+    except Exception as e:
+        print(f"Error enviando notificación de Telegram: {e}")
