@@ -13,41 +13,41 @@ def get_prices():
 
     print("Scraper iniciando... Solicitando HTML renderizado a la API de Browserless")
     
-    # Endpoint REST que imita el comportamiento de la página principal de Browserless
+    # Endpoint REST oficial de Browserless para extraer contenido
     api_url = f"https://chrome.browserless.io/content?token={token}"
     
-    # Configuramos la petición con el "Disfraz" y la acción del clic integrada
+    # Estructura de carga (Payload) con el formato de acciones corregido
     payload = {
         "url": STUBHUB_URL,
         "stealth": True,
-        "rejectResourceTypes": ["image", "media", "font"], # Ahorra datos y acelera la carga
-        "waitFor": 7000, # Espera 7 segundos a que React responda inicializado
+        "rejectResourceTypes": ["image", "media", "font"],  # Optimiza el consumo de datos
+        "waitFor": 7000,  # Espera inicial para que cargue la estructura de la página
         "actions": [
             {
-                "click": "text=1" # 🔥 SIMULA EL CLIC: Busca el texto "1" del popup y le hace clic automáticamente
+                "type": "click",
+                "selector": "text=1"  # 🔥 Formato correcto: Hace clic en el "1" para desbloquear precios
             }
         ]
     }
 
     try:
-        # Enviamos la orden directa al motor de Browserless
+        # Enviamos la petición POST emulando la herramienta de su web principal
         response = requests.post(api_url, json=payload, timeout=90)
         
         if response.status_code != 200:
             print(f"Error en la API de Browserless (Código {response.status_code})")
+            print(f"Detalle del error: {response.text}")
             return []
 
         content = response.text
-        
-        # Guardamos una pequeña muestra en el log para verificar qué cargó
-        print("Página recibida con éxito de la API.")
+        print("Página recibida y procesada con éxito por la API de Browserless.")
 
-        # Verificación de Cortafuegos en el HTML devuelto
+        # Verificación de Cortafuegos en el HTML devuelto por si acaso
         if "The request could not be satisfied" in content or "Pardon Our Interruption" in content:
-            print("ALERTA CRÍTICA: CloudFront bloqueó la petición REST de Browserless.")
+            print("ALERTA CRÍTICA: CloudFront logró bloquear la petición de la API.")
             return []
 
-        # Convertimos todo a minúsculas para búsquedas flexibles que no fallen por una letra
+        # Convertimos a minúsculas para que las búsquedas no fallen por diferencias de letras
         content_lower = content.lower()
         keywords_lower = [k.lower() for k in EVENT_KEYWORDS]
         section_lower = SECTION_TARGET.lower()
