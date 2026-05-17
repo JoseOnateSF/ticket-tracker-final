@@ -8,6 +8,7 @@ from config import BASE_PRICE, CHECK_INTERVAL, STUBHUB_URL
 
 app = Flask(__name__)
 
+# 📊 estado global del sistema
 data = {
     "prices": [],
     "best": None,
@@ -15,7 +16,8 @@ data = {
     "status": "starting"
 }
 
-def level(drop):
+# 🧠 niveles de alerta
+def get_level(drop):
     if drop >= 30:
         return "💥 CRÍTICO"
     elif drop >= 20:
@@ -27,12 +29,15 @@ def level(drop):
     return None
 
 
+# 🤖 MONITOR (SCRAPER LOOP)
 def monitor():
     last_level = None
 
     while True:
         try:
             prices = get_prices()
+
+            print("PRICES:", prices)
 
             if prices:
                 best = min(prices)
@@ -44,24 +49,33 @@ def monitor():
                 data["drop"] = round(drop, 2)
                 data["status"] = "running"
 
-                lvl = level(drop)
+                level = get_level(drop)
 
-                if lvl and lvl != last_level:
+                if level and level != last_level:
                     send_telegram(
-                        f"{lvl}\n"
+                        f"{level}\n"
                         f"🎟 Price: ${best}\n"
                         f"📉 Drop: {round(drop,2)}%\n"
                         f"💰 Base: ${BASE_PRICE}\n"
                         f"{STUBHUB_URL}"
                     )
-                    last_level = lvl
+                    last_level = level
+
+            else:
+                data["status"] = "no data"
 
         except Exception as e:
-            data["status"] = str(e)
+            data["status"] = f"error: {str(e)}"
+            print("ERROR:", e)
 
         time.sleep(CHECK_INTERVAL)
 
 
+# 🚀 ARRANCAR MONITOR AUTOMÁTICAMENTE (CLAVE EN RAILWAY)
+threading.Thread(target=monitor, daemon=True).start()
+
+
+# 🌐 FLASK API
 @app.route("/")
 def home():
     return jsonify(data)
@@ -69,12 +83,9 @@ def home():
 
 @app.route("/api")
 def api():
-    return data
+    return jsonify(data)
 
 
-if __name__ == "__main__":
-    t = threading.Thread(target=monitor)
-    t.daemon = True
-    t.start()
-
-    app.run(host="0.0.0.0", port=8080)
+# ⚠️ IMPORTANTE:
+# NO usamos if __name__ == "__main__"
+# porque Railway usa gunicorn
